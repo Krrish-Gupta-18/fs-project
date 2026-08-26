@@ -1,21 +1,47 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { loginUser } from '../services/mockApi';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [email, setEmail] = useState('alex.morgan@chatflow.io');
+  const [password, setPassword] = useState('password123');
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please fill in all fields');
+    setError('');
+
+    // Client-side validation using React state
+    if (!email.trim()) {
+      setError('Email address is required.');
       return;
     }
-    // Navigate to chat dashboard
-    navigate('/chat');
+
+    if (!email.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!password.trim()) {
+      setError('Password is required.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Simulated asynchronous login API call
+      await loginUser(email, password);
+      // Navigate to Chat Dashboard on success
+      navigate('/chat');
+    } catch (err) {
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -27,7 +53,7 @@ export function LoginPage() {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 text-sm rounded-md">
+          <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded-md font-medium">
             {error}
           </div>
         )}
@@ -40,9 +66,13 @@ export function LoginPage() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (error) setError('');
+              }}
               placeholder="you@example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm"
+              disabled={isLoading}
               required
             />
           </div>
@@ -54,20 +84,25 @@ export function LoginPage() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError('');
+              }}
               placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm"
+              disabled={isLoading}
               required
             />
           </div>
 
           <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center text-gray-600">
+            <label className="flex items-center text-gray-600 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                disabled={isLoading}
               />
               Remember me
             </label>
@@ -75,9 +110,17 @@ export function LoginPage() {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors"
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Login
+            {isLoading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Signing in...</span>
+              </>
+            ) : (
+              'Login'
+            )}
           </button>
         </form>
 

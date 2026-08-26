@@ -4,14 +4,16 @@ import { MessageBubble } from './MessageBubble';
 export function MessageList({
   messages = [],
   currentUser,
+  isTyping,
   onImageClick,
   activeConversation,
 }) {
+  // Section 10 Requirement: useRef for auto-scrolling message list to bottom
   const bottomRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isTyping]);
 
   if (!activeConversation) {
     return (
@@ -31,6 +33,27 @@ export function MessageList({
           onImageClick={onImageClick}
         />
       ))}
+
+      {/* Animated Typing Indicator Bubble */}
+      {isTyping && (
+        <div className="flex gap-2 my-2 justify-start items-center">
+          <img
+            src={activeConversation.avatar}
+            alt={activeConversation.name}
+            className="w-7 h-7 rounded-full object-cover"
+          />
+          <div className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-xs text-gray-500 flex items-center gap-1">
+            <span>{activeConversation.name} is typing</span>
+            <span className="flex gap-0.5 ml-1">
+              <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" />
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Auto-scroll anchor */}
       <div ref={bottomRef} />
     </div>
   );

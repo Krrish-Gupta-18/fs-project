@@ -1,124 +1,200 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { mockConversations, mockMessages, currentUser as initialUser, mockContacts } from '../data/mockData';
+import { fetchConversations } from '../services/mockApi';
+import { useDebounce } from './useDebounce';
+import { currentUser as initialUser, mockContacts } from '../data/mockData';
 
 export function useChat() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
 
-  const [conversations, setConversations] = useState(mockConversations);
-  const [messages, setMessages] = useState(mockMessages);
+  // Async API State
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Domain State
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState({});
   const [userProfile, setUserProfile] = useState(initialUser);
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'unread', 'groups', 'pinned'
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'unread', 'groups'
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // UI states
+
+  // Typing indicator state
+  const [isTyping, setIsTyping] = useState(false);
+
+  // UI Drawer & Modal states
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isInfoPanelOpen, setIsInfoPanelOpen] = useState(true);
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
 
-  // Active conversation object
-  const activeConversationId = conversationId || (conversations[0]?.id || 'conv_1');
+  // Timer reference for cleaning up simulated reply timeouts
+  const replyTimerRef = useRef(null);
+  const typingTimerRef = useRef(null);
 
-  // Selected active conversation
+  // 1. Debounced search query using custom hook useDebounce
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // 2. Data Fetching Simulation using useEffect
+  const loadData = useCallback(async (shouldFail = false) => {
+    setIsLoading(true);
+    setIsError(false);
+    setErrorMessage('');
+
+    try {
+      const data = await fetchConversations(shouldFail);
+      setConversations(data.conversations);
+      setMessages(data.messages);
+    } catch (err) {
+      setIsError(true);
+      setErrorMessage(err.message || 'Failed to fetch conversations.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Active conversation selection logic
+  const activeConversationId = conversationId || (conversations[0]?.id || null);
+
   const activeConversation = useMemo(() => {
-    return conversations.find((c) => c.id === activeConversationId) || conversations[0];
+    return conversations.find((c) => c.id === activeConversationId) || conversations[0] || null;
   }, [conversations, activeConversationId]);
 
-  // Selected conversation messages
   const activeMessages = useMemo(() => {
     return messages[activeConversationId] || [];
   }, [messages, activeConversationId]);
 
-  // Redirect to first conversation if /chat route without id
+  // Navigate to default conversation on initial load if route parameter missing
   useEffect(() => {
     if (!conversationId && conversations.length > 0) {
       navigate(`/chat/${conversations[0].id}`, { replace: true });
     }
   }, [conversationId, conversations, navigate]);
 
-  // Filtered conversations based on tab and search query
+  // 3. Document Title Sync using useEffect
+  useEffect(() => {
+    if (activeConversation) {
+      if (isTyping) {
+        document.title = `ChatFlow (Typing...) - ${activeConversation.name}`;
+      } else {
+        document.title = `ChatFlow - ${activeConversation.name}`;
+      }
+    } else {
+      document.title = 'ChatFlow - Real-Time Messaging';
+    }
+
+    return () => {
+      document.title = 'ChatFlow';
+    };
+  }, [activeConversation, isTyping]);
+
+  // 4. Memoized Filtered Conversations using useMemo
   const filteredConversations = useMemo(() => {
     return conversations.filter((conv) => {
+      const query = debouncedSearchQuery.toLowerCase().trim();
       const matchesSearch =
-        conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase());
+        !query ||
+        conv.name.toLowerCase().includes(query) ||
+        conv.lastMessage.toLowerCase().includes(query);
 
       if (!matchesSearch) return false;
 
       if (activeTab === 'unread') return conv.unreadCount > 0;
       if (activeTab === 'groups') return conv.type === 'group';
-      if (activeTab === 'pinned') return conv.isPinned;
       return true;
     });
-  }, [conversations, activeTab, searchQuery]);
+  }, [conversations, activeTab, debouncedSearchQuery]);
 
-  // Select conversation
-  const selectConversation = (id) => {
-    // Clear unread count when opening conversation
-    setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c))
-    );
-    setIsMobileSidebarOpen(false);
-    navigate(`/chat/${id}`);
-  };
+  // Select conversation handler
+  const selectConversation = useCallback(
+    (id) => {
+      // Clear pending response timers when switching chats
+      if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      setIsTyping(false);
 
-  // Send message
-  const sendMessage = (text, media = null, attachment = null) => {
-    if (!text.trim() && !media && !attachment) return;
+      // Clear unread badge
+      setConversations((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c))
+      );
+      setIsMobileSidebarOpen(false);
+      navigate(`/chat/${id}`);
+    },
+    [navigate]
+  );
 
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    const newMsg = {
-      id: `msg_${Date.now()}`,
-      senderId: userProfile.id,
-      senderName: userProfile.name,
-      senderAvatar: userProfile.avatar,
-      text: text.trim(),
-      timestamp: timeStr,
-      date: 'Today',
-      status: 'sent',
-      ...(media && { media }),
-      ...(attachment && { attachment }),
-    };
+  // 5. Send message with useCallback and simulated typing & response queue
+  const sendMessage = useCallback(
+    (text, media = null, attachment = null) => {
+      if (!text.trim() && !media && !attachment) return;
+      if (!activeConversationId) return;
 
-    // Update messages
-    setMessages((prev) => ({
-      ...prev,
-      [activeConversationId]: [...(prev[activeConversationId] || []), newMsg],
-    }));
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Update conversation last message & timestamp
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeConversationId
-          ? {
-              ...c,
-              lastMessage: text.trim() || (media ? 'Sent an image' : 'Sent an attachment'),
-              timestamp: timeStr,
-            }
-          : c
-      )
-    );
+      const newMsg = {
+        id: `msg_${Date.now()}`,
+        senderId: userProfile.id,
+        senderName: userProfile.name,
+        senderAvatar: userProfile.avatar,
+        text: text.trim(),
+        timestamp: timeStr,
+        date: 'Today',
+        status: 'sent',
+        ...(media && { media }),
+        ...(attachment && { attachment }),
+      };
 
-    // Simulate auto-reply from contact after 1.5 seconds if direct chat
-    if (activeConversation?.type === 'direct') {
-      setTimeout(() => {
+      // Append new message to local state immediately
+      setMessages((prev) => ({
+        ...prev,
+        [activeConversationId]: [...(prev[activeConversationId] || []), newMsg],
+      }));
+
+      // Update conversation list preview
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeConversationId
+            ? {
+                ...c,
+                lastMessage: text.trim() || (media ? 'Sent an image' : 'Sent an attachment'),
+                timestamp: timeStr,
+              }
+            : c
+        )
+      );
+
+      // Clear previous pending timers if any
+      if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+
+      // Trigger "Typing..." indicator after 400ms delay
+      typingTimerRef.current = setTimeout(() => {
+        setIsTyping(true);
+      }, 400);
+
+      // Trigger simulated reply after 1.6 seconds
+      replyTimerRef.current = setTimeout(() => {
+        setIsTyping(false);
+
         const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const replies = [
-          "Got it! Thanks for sending that over.",
-          "Awesome, I'm reviewing it right now. Looks really clean!",
-          "That sounds good to me. Let's touch base again shortly.",
-          "Perfect! I will make a quick note of this.",
+        const sampleReplies = [
+          "Got it! Thanks for reaching out.",
+          "That makes sense. I'll test it right away!",
+          "Sounds good to me. Let's catch up on this shortly.",
+          "Awesome! Working on the frontend update now.",
         ];
-        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+        const randomReply = sampleReplies[Math.floor(Math.random() * sampleReplies.length)];
 
         const autoMsg = {
-          id: `msg_reply_${Date.now()}`,
-          senderId: activeConversation.id,
-          senderName: activeConversation.name,
-          senderAvatar: activeConversation.avatar,
+          id: `reply_${Date.now()}`,
+          senderId: activeConversationId,
+          senderName: activeConversation?.name || 'Contact',
+          senderAvatar: activeConversation?.avatar || '',
           text: randomReply,
           timestamp: replyTime,
           date: 'Today',
@@ -141,120 +217,64 @@ export function useChat() {
               : c
           )
         );
-      }, 1500);
-    }
-  };
+      }, 1600);
+    },
+    [activeConversationId, activeConversation, userProfile]
+  );
 
-  // Toggle emoji reaction
-  const toggleReaction = (messageId, emoji) => {
-    setMessages((prev) => {
-      const convMsgs = prev[activeConversationId] || [];
-      const updated = convMsgs.map((msg) => {
-        if (msg.id !== messageId) return msg;
-
-        const reactions = msg.reactions || [];
-        const existingIdx = reactions.findIndex((r) => r.emoji === emoji);
-
-        let newReactions;
-        if (existingIdx > -1) {
-          const existing = reactions[existingIdx];
-          const userHasReacted = existing.users.includes(userProfile.id);
-
-          if (userHasReacted) {
-            // Remove user reaction
-            const newUsers = existing.users.filter((u) => u !== userProfile.id);
-            if (newUsers.length === 0) {
-              newReactions = reactions.filter((_, idx) => idx !== existingIdx);
-            } else {
-              newReactions = [...reactions];
-              newReactions[existingIdx] = {
-                ...existing,
-                count: existing.count - 1,
-                users: newUsers,
-              };
-            }
-          } else {
-            // Add user to reaction
-            newReactions = [...reactions];
-            newReactions[existingIdx] = {
-              ...existing,
-              count: existing.count + 1,
-              users: [...existing.users, userProfile.id],
-            };
-          }
-        } else {
-          // Add new emoji reaction
-          newReactions = [...reactions, { emoji, count: 1, users: [userProfile.id] }];
-        }
-
-        return { ...msg, reactions: newReactions };
-      });
-
-      return { ...prev, [activeConversationId]: updated };
-    });
-  };
+  // Clean up timer timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    };
+  }, []);
 
   // Start new conversation
-  const startNewConversation = (contact) => {
-    const existing = conversations.find((c) => c.name === contact.name);
-    if (existing) {
-      selectConversation(existing.id);
-    } else {
-      const newConvId = `conv_${Date.now()}`;
-      const newConv = {
-        id: newConvId,
-        type: 'direct',
-        name: contact.name,
-        tag: `@${contact.name.toLowerCase().replace(/\s+/g, '_')}`,
-        avatar: contact.avatar,
-        status: contact.status || 'online',
-        lastMessage: 'Started a new conversation',
-        timestamp: 'Just now',
-        unreadCount: 0,
-        isPinned: false,
-        isMuted: false,
-        bio: contact.role || 'ChatFlow User',
-      };
+  const startNewConversation = useCallback(
+    (contact) => {
+      const existing = conversations.find((c) => c.name === contact.name);
+      if (existing) {
+        selectConversation(existing.id);
+      } else {
+        const newConvId = `conv_${Date.now()}`;
+        const newConv = {
+          id: newConvId,
+          type: 'direct',
+          name: contact.name,
+          avatar: contact.avatar,
+          status: contact.status || 'online',
+          lastMessage: 'Started a new conversation',
+          timestamp: 'Just now',
+          unreadCount: 0,
+          bio: contact.role || 'ChatFlow Contact',
+        };
 
-      setConversations((prev) => [newConv, ...prev]);
-      setMessages((prev) => ({
-        ...prev,
-        [newConvId]: [
-          {
-            id: `msg_welcome_${Date.now()}`,
-            senderId: 'system',
-            text: `You connected with ${contact.name}. Send a message to get started! 👋`,
-            timestamp: 'Just now',
-            date: 'Today',
-            status: 'read',
-          },
-        ],
-      }));
-      selectConversation(newConvId);
-    }
-    setIsNewChatModalOpen(false);
-  };
-
-  // Toggle Pinned status
-  const togglePin = (convId) => {
-    setConversations((prev) =>
-      prev.map((c) => (c.id === convId ? { ...c, isPinned: !c.isPinned } : c))
-    );
-  };
-
-  // Toggle Mute status
-  const toggleMute = (convId) => {
-    setConversations((prev) =>
-      prev.map((c) => (c.id === convId ? { ...c, isMuted: !c.isMuted } : c))
-    );
-  };
-
-  // Update user status
-  const updateUserStatus = (newStatus) => {
-    setUserProfile((prev) => ({ ...prev, status: newStatus }));
-  };
+        setConversations((prev) => [newConv, ...prev]);
+        setMessages((prev) => ({
+          ...prev,
+          [newConvId]: [
+            {
+              id: `welcome_${Date.now()}`,
+              senderId: 'system',
+              text: `You connected with ${contact.name}. Say hello! 👋`,
+              timestamp: 'Just now',
+              date: 'Today',
+            },
+          ],
+        }));
+        selectConversation(newConvId);
+      }
+      setIsNewChatModalOpen(false);
+    },
+    [conversations, selectConversation]
+  );
 
   return {
+    isLoading,
+    isError,
+    errorMessage,
+    refetchData: loadData,
     conversations: filteredConversations,
     allConversations: conversations,
     activeConversation,
@@ -264,6 +284,7 @@ export function useChat() {
     setActiveTab,
     searchQuery,
     setSearchQuery,
+    isTyping,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
     isInfoPanelOpen,
@@ -274,11 +295,7 @@ export function useChat() {
     setLightboxImage,
     selectConversation,
     sendMessage,
-    toggleReaction,
     startNewConversation,
-    togglePin,
-    toggleMute,
-    updateUserStatus,
     mockContacts,
   };
 }
