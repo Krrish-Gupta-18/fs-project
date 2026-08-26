@@ -7,26 +7,72 @@ export function LoginPage() {
   const [email, setEmail] = useState('alex.morgan@chatflow.io');
   const [password, setPassword] = useState('password123');
   const [rememberMe, setRememberMe] = useState(true);
-  const [error, setError] = useState('');
+
+  // Validation States
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [generalError, setGeneralError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Validate fields dynamically
+  const validateField = (name, value) => {
+    let error = '';
+    if (name === 'email') {
+      if (!value.trim()) {
+        error = 'Email address is required.';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        error = 'Please enter a valid email address (e.g., user@domain.com).';
+      }
+    } else if (name === 'password') {
+      if (!value.trim()) {
+        error = 'Password is required.';
+      } else if (value.length < 6) {
+        error = 'Password must be at least 6 characters long.';
+      }
+    }
+    return error;
+  };
+
+  const validateForm = () => {
+    const errors = {
+      email: validateField('email', email),
+      password: validateField('password', password),
+    };
+
+    // Filter empty strings
+    const activeErrors = Object.fromEntries(
+      Object.entries(errors).filter(([_, err]) => err)
+    );
+
+    setFieldErrors(activeErrors);
+    return Object.keys(activeErrors).length === 0;
+  };
+
+  const handleBlur = (field) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const error = validateField(field, field === 'email' ? email : password);
+    setFieldErrors((prev) => ({ ...prev, [field]: error }));
+  };
+
+  const handleChange = (field, value) => {
+    if (field === 'email') setEmail(value);
+    if (field === 'password') setPassword(value);
+    setGeneralError('');
+
+    if (touched[field]) {
+      const error = validateField(field, value);
+      setFieldErrors((prev) => ({ ...prev, [field]: error }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setGeneralError('');
 
-    // Client-side validation using React state
-    if (!email.trim()) {
-      setError('Email address is required.');
-      return;
-    }
+    // Touch all fields on submit attempt
+    setTouched({ email: true, password: true });
 
-    if (!email.includes('@')) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-
-    if (!password.trim()) {
-      setError('Password is required.');
+    if (!validateForm()) {
       return;
     }
 
@@ -38,7 +84,7 @@ export function LoginPage() {
       // Navigate to Chat Dashboard on success
       navigate('/chat');
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
+      setGeneralError(err.message || 'Login failed. Please check your credentials and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -52,47 +98,59 @@ export function LoginPage() {
           <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
         </div>
 
-        {error && (
+        {generalError && (
           <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded-md font-medium">
-            {error}
+            {generalError}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
+              Email Address <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (error) setError('');
-              }}
+              onChange={(e) => handleChange('email', e.target.value)}
+              onBlur={() => handleBlur('email')}
               placeholder="you@example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm"
+              className={`w-full px-3 py-2 border rounded-md text-gray-800 text-sm focus:outline-none focus:ring-2 ${
+                touched.email && fieldErrors.email
+                  ? 'border-red-500 focus:ring-red-400 bg-red-50/30'
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
               disabled={isLoading}
-              required
             />
+            {touched.email && fieldErrors.email && (
+              <span className="text-xs text-red-600 mt-1 block font-medium">
+                {fieldErrors.email}
+              </span>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
+              Password <span className="text-red-500">*</span>
             </label>
             <input
               type="password"
               value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (error) setError('');
-              }}
+              onChange={(e) => handleChange('password', e.target.value)}
+              onBlur={() => handleBlur('password')}
               placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm"
+              className={`w-full px-3 py-2 border rounded-md text-gray-800 text-sm focus:outline-none focus:ring-2 ${
+                touched.password && fieldErrors.password
+                  ? 'border-red-500 focus:ring-red-400 bg-red-50/30'
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
               disabled={isLoading}
-              required
             />
+            {touched.password && fieldErrors.password && (
+              <span className="text-xs text-red-600 mt-1 block font-medium">
+                {fieldErrors.password}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center justify-between text-sm">

@@ -8,31 +8,100 @@ export function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+
+  // Form Validation State
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [generalError, setGeneralError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Validate a single field dynamically
+  const validateField = (fieldName, value, currentPassword = password) => {
+    let error = '';
+    if (fieldName === 'name') {
+      if (!value.trim()) {
+        error = 'Full name is required.';
+      } else if (value.trim().length < 2) {
+        error = 'Name must be at least 2 characters long.';
+      }
+    } else if (fieldName === 'email') {
+      if (!value.trim()) {
+        error = 'Email address is required.';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        error = 'Please enter a valid email address (e.g., user@domain.com).';
+      }
+    } else if (fieldName === 'password') {
+      if (!value.trim()) {
+        error = 'Password is required.';
+      } else if (value.length < 6) {
+        error = 'Password must be at least 6 characters long.';
+      }
+    } else if (fieldName === 'confirmPassword') {
+      if (!value.trim()) {
+        error = 'Please confirm your password.';
+      } else if (value !== currentPassword) {
+        error = 'Passwords do not match.';
+      }
+    }
+    return error;
+  };
+
+  const validateForm = () => {
+    const errors = {
+      name: validateField('name', name),
+      email: validateField('email', email),
+      password: validateField('password', password),
+      confirmPassword: validateField('confirmPassword', confirmPassword, password),
+    };
+
+    const activeErrors = Object.fromEntries(
+      Object.entries(errors).filter(([_, err]) => err)
+    );
+
+    setFieldErrors(activeErrors);
+    return Object.keys(activeErrors).length === 0;
+  };
+
+  const handleBlur = (field) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    let val = '';
+    if (field === 'name') val = name;
+    if (field === 'email') val = email;
+    if (field === 'password') val = password;
+    if (field === 'confirmPassword') val = confirmPassword;
+
+    const error = validateField(field, val, password);
+    setFieldErrors((prev) => ({ ...prev, [field]: error }));
+  };
+
+  const handleChange = (field, value) => {
+    setGeneralError('');
+    if (field === 'name') setName(value);
+    if (field === 'email') setEmail(value);
+    if (field === 'password') {
+      setPassword(value);
+      // Re-validate confirmPassword if confirmPassword is touched
+      if (touched.confirmPassword && confirmPassword) {
+        const confirmErr = validateField('confirmPassword', confirmPassword, value);
+        setFieldErrors((prev) => ({ ...prev, confirmPassword: confirmErr }));
+      }
+    }
+    if (field === 'confirmPassword') setConfirmPassword(value);
+
+    if (touched[field]) {
+      const error = validateField(field, value, field === 'password' ? value : password);
+      setFieldErrors((prev) => ({ ...prev, [field]: error }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setGeneralError('');
 
-    // Field Validation
-    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
-      setError('All fields are required.');
-      return;
-    }
+    // Touch all fields on submit attempt
+    setTouched({ name: true, email: true, password: true, confirmPassword: true });
 
-    if (!email.includes('@')) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    if (!validateForm()) {
       return;
     }
 
@@ -44,7 +113,7 @@ export function RegisterPage() {
       // Navigate to login after successful registration
       navigate('/login');
     } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setGeneralError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -58,83 +127,107 @@ export function RegisterPage() {
           <p className="text-sm text-gray-500 mt-1">Create a new account</p>
         </div>
 
-        {error && (
+        {generalError && (
           <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded-md font-medium">
-            {error}
+            {generalError}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
+              Full Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (error) setError('');
-              }}
+              onChange={(e) => handleChange('name', e.target.value)}
+              onBlur={() => handleBlur('name')}
               placeholder="John Doe"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm"
+              className={`w-full px-3 py-2 border rounded-md text-gray-800 text-sm focus:outline-none focus:ring-2 ${
+                touched.name && fieldErrors.name
+                  ? 'border-red-500 focus:ring-red-400 bg-red-50/30'
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
               disabled={isSubmitting}
-              required
             />
+            {touched.name && fieldErrors.name && (
+              <span className="text-xs text-red-600 mt-1 block font-medium">
+                {fieldErrors.name}
+              </span>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
+              Email Address <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (error) setError('');
-              }}
+              onChange={(e) => handleChange('email', e.target.value)}
+              onBlur={() => handleBlur('email')}
               placeholder="you@example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm"
+              className={`w-full px-3 py-2 border rounded-md text-gray-800 text-sm focus:outline-none focus:ring-2 ${
+                touched.email && fieldErrors.email
+                  ? 'border-red-500 focus:ring-red-400 bg-red-50/30'
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
               disabled={isSubmitting}
-              required
             />
+            {touched.email && fieldErrors.email && (
+              <span className="text-xs text-red-600 mt-1 block font-medium">
+                {fieldErrors.email}
+              </span>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
+              Password <span className="text-red-500">*</span>
             </label>
             <input
               type="password"
               value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (error) setError('');
-              }}
+              onChange={(e) => handleChange('password', e.target.value)}
+              onBlur={() => handleBlur('password')}
               placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm"
+              className={`w-full px-3 py-2 border rounded-md text-gray-800 text-sm focus:outline-none focus:ring-2 ${
+                touched.password && fieldErrors.password
+                  ? 'border-red-500 focus:ring-red-400 bg-red-50/30'
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
               disabled={isSubmitting}
-              required
             />
+            {touched.password && fieldErrors.password && (
+              <span className="text-xs text-red-600 mt-1 block font-medium">
+                {fieldErrors.password}
+              </span>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
+              Confirm Password <span className="text-red-500">*</span>
             </label>
             <input
               type="password"
               value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                if (error) setError('');
-              }}
+              onChange={(e) => handleChange('confirmPassword', e.target.value)}
+              onBlur={() => handleBlur('confirmPassword')}
               placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm"
+              className={`w-full px-3 py-2 border rounded-md text-gray-800 text-sm focus:outline-none focus:ring-2 ${
+                touched.confirmPassword && fieldErrors.confirmPassword
+                  ? 'border-red-500 focus:ring-red-400 bg-red-50/30'
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
               disabled={isSubmitting}
-              required
             />
+            {touched.confirmPassword && fieldErrors.confirmPassword && (
+              <span className="text-xs text-red-600 mt-1 block font-medium">
+                {fieldErrors.confirmPassword}
+              </span>
+            )}
           </div>
 
           <button

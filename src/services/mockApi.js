@@ -34,8 +34,8 @@ export async function loginUser(email, password) {
     throw new Error('Please enter a valid email address.');
   }
 
-  if (password.length < 4) {
-    throw new Error('Password must be at least 4 characters long.');
+  if (password.length < 6) {
+    throw new Error('Password must be at least 6 characters long.');
   }
 
   return {
