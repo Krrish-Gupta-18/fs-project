@@ -1,16 +1,24 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Menu, Info } from 'lucide-react';
+import { ChatContext } from '../../context/ChatContext';
+import { Navbar } from '../Navbar';
 
 export function ChatHeader({
-  conversation,
-  isTyping,
+  conversation: propConversation,
+  isTyping: propIsTyping,
   onToggleMobileSidebar,
   onToggleInfoPanel,
   isInfoPanelOpen,
 }) {
-  if (!conversation) return null;
+  // Experiment No. 3: Access global chat state from ChatContext
+  const { messages, selectedChat, isTyping: contextIsTyping } = useContext(ChatContext);
 
-  const { name, avatar, status } = conversation;
+  const activeConv = selectedChat || propConversation;
+  const showTyping = contextIsTyping !== undefined ? contextIsTyping : propIsTyping;
+
+  if (!activeConv) return null;
+
+  const { name, avatar, status } = activeConv;
 
   return (
     <div className="h-14 px-4 bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
@@ -31,7 +39,7 @@ export function ChatHeader({
 
         <div>
           <h2 className="text-sm font-bold text-gray-800">{name}</h2>
-          {isTyping ? (
+          {showTyping ? (
             <span className="text-xs text-blue-600 font-semibold animate-pulse">
               {name} is typing...
             </span>
@@ -43,17 +51,23 @@ export function ChatHeader({
         </div>
       </div>
 
-      <button
-        onClick={onToggleInfoPanel}
-        className={`p-2 rounded-md transition-colors ${
-          isInfoPanelOpen
-            ? 'bg-blue-100 text-blue-600'
-            : 'text-gray-500 hover:bg-gray-100'
-        }`}
-        title="Toggle Info Panel"
-      >
-        <Info className="w-4 h-4" />
-      </button>
+      <div className="flex items-center gap-3">
+        {/* Navbar component demonstrating global state consumption (Messages: X) */}
+        <Navbar />
+
+        <button
+          onClick={onToggleInfoPanel}
+          className={`p-2 rounded-md transition-colors ${
+            isInfoPanelOpen
+              ? 'bg-blue-100 text-blue-600'
+              : 'text-gray-500 hover:bg-gray-100'
+          }`}
+          title="Toggle Info Panel"
+        >
+          <Info className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }
+

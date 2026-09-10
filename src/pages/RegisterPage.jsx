@@ -108,10 +108,15 @@ export function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      // Simulate registration delayed promise API request
+      // Simulate registration delayed promise API request and save to mockData
       await registerUser({ name, email, password, confirmPassword });
-      // Navigate to login after successful registration
-      navigate('/login');
+      // Navigate to login after successful registration with state
+      navigate('/login', {
+        state: {
+          registeredEmail: email,
+          successMessage: 'Account created successfully! Please log in with your credentials.',
+        },
+      });
     } catch (err) {
       setGeneralError(err.message || 'Registration failed. Please try again.');
     } finally {

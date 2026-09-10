@@ -14,6 +14,86 @@ export const currentUser = {
   joinedDate: 'March 2024',
 };
 
+// Registered users database in mockData
+export const mockUsers = [
+  {
+    id: 'user_0',
+    name: 'Alex Morgan',
+    tag: '@alexm',
+    email: 'alex.morgan@chatflow.io',
+    password: 'password123',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
+    status: 'online',
+    customStatus: 'Coding something amazing 🚀',
+    bio: 'Lead Frontend Engineer & UI Designer.',
+    phone: '+1 (555) 234-5678',
+    location: 'San Francisco, CA',
+    joinedDate: 'March 2024',
+  },
+];
+
+/**
+ * Add registered user data into mockData
+ */
+export function addMockUser(userData) {
+  const newUser = {
+    id: `user_${Date.now()}`,
+    name: userData.name,
+    tag: `@${userData.name.toLowerCase().replace(/\s+/g, '_')}`,
+    email: userData.email.toLowerCase().trim(),
+    password: userData.password,
+    avatar: userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=2563eb&color=fff`,
+    status: 'online',
+    customStatus: 'Ready to chat 👋',
+    bio: userData.bio || 'ChatFlow Member',
+    joinedDate: 'Just now',
+  };
+
+  mockUsers.push(newUser);
+
+  // Sync to localStorage for session persistence
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = JSON.parse(localStorage.getItem('chatflow_registered_users') || '[]');
+      stored.push(newUser);
+      localStorage.setItem('chatflow_registered_users', JSON.stringify(stored));
+    } catch (e) {
+      // ignore in non-browser environments
+    }
+  }
+
+  return newUser;
+}
+
+/**
+ * Find user by email in mockData
+ */
+export function findMockUserByEmail(email) {
+  if (!email) return null;
+  const targetEmail = email.toLowerCase().trim();
+
+  // Check in-memory mockUsers
+  const found = mockUsers.find((u) => u.email.toLowerCase() === targetEmail);
+  if (found) return found;
+
+  // Check localStorage stored users
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = JSON.parse(localStorage.getItem('chatflow_registered_users') || '[]');
+      const inStorage = stored.find((u) => u.email.toLowerCase() === targetEmail);
+      if (inStorage) {
+        mockUsers.push(inStorage);
+        return inStorage;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  return null;
+}
+
+
 export const mockConversations = [
   {
     id: 'conv_1',

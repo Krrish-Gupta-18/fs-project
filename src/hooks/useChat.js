@@ -1,27 +1,37 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchConversations } from '../services/mockApi';
 import { useDebounce } from './useDebounce';
-import { currentUser as initialUser, mockContacts } from '../data/mockData';
+import { mockContacts } from '../data/mockData';
+import { ChatContext } from '../context/ChatContext';
 
+/**
+ * useChat Hook
+ * Bridges routing and UI state with the global ChatContext (Experiment No. 3).
+ * Components can use either this hook or `useContext(ChatContext)` directly.
+ */
 export function useChat() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
 
-  // Async API State
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  // Consume the global state from ChatContext (Experiment No. 3)
+  const chatContext = useContext(ChatContext);
 
-  // Domain State
-  const [conversations, setConversations] = useState([]);
-  const [messages, setMessages] = useState({});
-  const [userProfile, setUserProfile] = useState(initialUser);
+  const {
+    messages: contextMessages = [],
+    currentUser,
+    selectedChat: contextSelectedChat,
+    conversations: contextConversations = [],
+    isTyping: contextIsTyping = false,
+    sendMessage: contextSendMessage,
+    deleteMessage: contextDeleteMessage,
+    clearChat: contextClearChat,
+    selectConversation: contextSelectConversation,
+    setConversations: contextSetConversations,
+  } = chatContext || {};
+
+  // UI state for search and filtering
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'unread', 'groups'
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Typing indicator state
-  const [isTyping, setIsTyping] = useState(false);
 
   // UI Drawer & Modal states
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -29,54 +39,35 @@ export function useChat() {
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
 
-  // Timer reference for cleaning up simulated reply timeouts
-  const replyTimerRef = useRef(null);
-  const typingTimerRef = useRef(null);
+  // Status flags
+  const [isLoading, setIsLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // 1. Debounced search query using custom hook useDebounce
+  // Debounced search query using custom hook useDebounce
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // 2. Data Fetching Simulation using useEffect
-  const loadData = useCallback(async (shouldFail = false) => {
-    setIsLoading(true);
-    setIsError(false);
-    setErrorMessage('');
+  const conversations = contextConversations;
+  const activeConversation = contextSelectedChat || conversations[0] || null;
+  const activeMessages = contextMessages;
+  const userProfile = currentUser;
+  const isTyping = contextIsTyping;
 
-    try {
-      const data = await fetchConversations(shouldFail);
-      setConversations(data.conversations);
-      setMessages(data.messages);
-    } catch (err) {
-      setIsError(true);
-      setErrorMessage(err.message || 'Failed to fetch conversations.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
+  // Synchronize route URL param with ChatContext
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (conversationId && contextSelectConversation && contextSelectedChat?.id !== conversationId) {
+      contextSelectConversation(conversationId);
+    }
+  }, [conversationId, contextSelectConversation, contextSelectedChat]);
 
-  // Active conversation selection logic
-  const activeConversationId = conversationId || (conversations[0]?.id || null);
-
-  const activeConversation = useMemo(() => {
-    return conversations.find((c) => c.id === activeConversationId) || conversations[0] || null;
-  }, [conversations, activeConversationId]);
-
-  const activeMessages = useMemo(() => {
-    return messages[activeConversationId] || [];
-  }, [messages, activeConversationId]);
-
-  // Navigate to default conversation on initial load if route parameter missing
+  // Navigate to default conversation on initial load if route parameter is missing
   useEffect(() => {
     if (!conversationId && conversations.length > 0) {
       navigate(`/chat/${conversations[0].id}`, { replace: true });
     }
   }, [conversationId, conversations, navigate]);
 
-  // 3. Document Title Sync using useEffect
+  // Document Title Sync
   useEffect(() => {
     if (activeConversation) {
       if (isTyping) {
@@ -93,14 +84,14 @@ export function useChat() {
     };
   }, [activeConversation, isTyping]);
 
-  // 4. Memoized Filtered Conversations using useMemo
+  // Memoized Filtered Conversations
   const filteredConversations = useMemo(() => {
     return conversations.filter((conv) => {
       const query = debouncedSearchQuery.toLowerCase().trim();
       const matchesSearch =
         !query ||
         conv.name.toLowerCase().includes(query) ||
-        conv.lastMessage.toLowerCase().includes(query);
+        (conv.lastMessage && conv.lastMessage.toLowerCase().includes(query));
 
       if (!matchesSearch) return false;
 
@@ -113,124 +104,26 @@ export function useChat() {
   // Select conversation handler
   const selectConversation = useCallback(
     (id) => {
-      // Clear pending response timers when switching chats
-      if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-      setIsTyping(false);
-
-      // Clear unread badge
-      setConversations((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c))
-      );
+      if (contextSelectConversation) {
+        contextSelectConversation(id);
+      }
       setIsMobileSidebarOpen(false);
       navigate(`/chat/${id}`);
     },
-    [navigate]
+    [contextSelectConversation, navigate]
   );
 
-  // 5. Send message with useCallback and simulated typing & response queue
+  // Send message action dispatcher
   const sendMessage = useCallback(
     (text, media = null, attachment = null) => {
-      if (!text.trim() && !media && !attachment) return;
-      if (!activeConversationId) return;
-
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      const newMsg = {
-        id: `msg_${Date.now()}`,
-        senderId: userProfile.id,
-        senderName: userProfile.name,
-        senderAvatar: userProfile.avatar,
-        text: text.trim(),
-        timestamp: timeStr,
-        date: 'Today',
-        status: 'sent',
-        ...(media && { media }),
-        ...(attachment && { attachment }),
-      };
-
-      // Append new message to local state immediately
-      setMessages((prev) => ({
-        ...prev,
-        [activeConversationId]: [...(prev[activeConversationId] || []), newMsg],
-      }));
-
-      // Update conversation list preview
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeConversationId
-            ? {
-                ...c,
-                lastMessage: text.trim() || (media ? 'Sent an image' : 'Sent an attachment'),
-                timestamp: timeStr,
-              }
-            : c
-        )
-      );
-
-      // Clear previous pending timers if any
-      if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-
-      // Trigger "Typing..." indicator after 400ms delay
-      typingTimerRef.current = setTimeout(() => {
-        setIsTyping(true);
-      }, 400);
-
-      // Trigger simulated reply after 1.6 seconds
-      replyTimerRef.current = setTimeout(() => {
-        setIsTyping(false);
-
-        const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const sampleReplies = [
-          "Got it! Thanks for reaching out.",
-          "That makes sense. I'll test it right away!",
-          "Sounds good to me. Let's catch up on this shortly.",
-          "Awesome! Working on the frontend update now.",
-        ];
-        const randomReply = sampleReplies[Math.floor(Math.random() * sampleReplies.length)];
-
-        const autoMsg = {
-          id: `reply_${Date.now()}`,
-          senderId: activeConversationId,
-          senderName: activeConversation?.name || 'Contact',
-          senderAvatar: activeConversation?.avatar || '',
-          text: randomReply,
-          timestamp: replyTime,
-          date: 'Today',
-          status: 'delivered',
-        };
-
-        setMessages((prev) => ({
-          ...prev,
-          [activeConversationId]: [...(prev[activeConversationId] || []), autoMsg],
-        }));
-
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === activeConversationId
-              ? {
-                  ...c,
-                  lastMessage: randomReply,
-                  timestamp: replyTime,
-                }
-              : c
-          )
-        );
-      }, 1600);
+      if (contextSendMessage) {
+        contextSendMessage(text, media, attachment);
+      }
     },
-    [activeConversationId, activeConversation, userProfile]
+    [contextSendMessage]
   );
 
-  // Clean up timer timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-    };
-  }, []);
-
-  // Start new conversation
+  // Start new conversation handler
   const startNewConversation = useCallback(
     (contact) => {
       const existing = conversations.find((c) => c.name === contact.name);
@@ -250,31 +143,21 @@ export function useChat() {
           bio: contact.role || 'ChatFlow Contact',
         };
 
-        setConversations((prev) => [newConv, ...prev]);
-        setMessages((prev) => ({
-          ...prev,
-          [newConvId]: [
-            {
-              id: `welcome_${Date.now()}`,
-              senderId: 'system',
-              text: `You connected with ${contact.name}. Say hello! 👋`,
-              timestamp: 'Just now',
-              date: 'Today',
-            },
-          ],
-        }));
+        if (contextSetConversations) {
+          contextSetConversations((prev) => [newConv, ...prev]);
+        }
         selectConversation(newConvId);
       }
       setIsNewChatModalOpen(false);
     },
-    [conversations, selectConversation]
+    [conversations, contextSetConversations, selectConversation]
   );
 
   return {
     isLoading,
     isError,
     errorMessage,
-    refetchData: loadData,
+    refetchData: () => {},
     conversations: filteredConversations,
     allConversations: conversations,
     activeConversation,
@@ -295,6 +178,8 @@ export function useChat() {
     setLightboxImage,
     selectConversation,
     sendMessage,
+    deleteMessage: contextDeleteMessage,
+    clearChat: contextClearChat,
     startNewConversation,
     mockContacts,
   };

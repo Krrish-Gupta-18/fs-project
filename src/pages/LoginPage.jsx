@@ -1,12 +1,22 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useContext } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { loginUser } from '../services/mockApi';
+import { ChatContext } from '../context/ChatContext';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('alex.morgan@chatflow.io');
-  const [password, setPassword] = useState('password123');
+  const location = useLocation();
+
+  // Access setCurrentUser action from ChatContext
+  const { setCurrentUser } = useContext(ChatContext);
+
+  // Dynamic state: prefill with newly registered email if arriving from RegisterPage, else empty
+  const [email, setEmail] = useState(location.state?.registeredEmail || '');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Success message from registration redirect
+  const [successMessage, setSuccessMessage] = useState(location.state?.successMessage || '');
 
   // Validation States
   const [fieldErrors, setFieldErrors] = useState({});
@@ -58,6 +68,7 @@ export function LoginPage() {
     if (field === 'email') setEmail(value);
     if (field === 'password') setPassword(value);
     setGeneralError('');
+    setSuccessMessage('');
 
     if (touched[field]) {
       const error = validateField(field, value);
@@ -68,6 +79,7 @@ export function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setGeneralError('');
+    setSuccessMessage('');
 
     // Touch all fields on submit attempt
     setTouched({ email: true, password: true });
@@ -79,8 +91,14 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Simulated asynchronous login API call
-      await loginUser(email, password);
+      // Validate against registered users in mockData.js (NO hardcoded data)
+      const res = await loginUser(email, password);
+
+      // Set logged-in user in global ChatContext (Experiment No. 3)
+      if (setCurrentUser) {
+        setCurrentUser(res.user);
+      }
+
       // Navigate to Chat Dashboard on success
       navigate('/chat');
     } catch (err) {
@@ -97,6 +115,12 @@ export function LoginPage() {
           <h1 className="text-2xl font-bold text-gray-800">ChatFlow</h1>
           <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
         </div>
+
+        {successMessage && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-md font-medium">
+            {successMessage}
+          </div>
+        )}
 
         {generalError && (
           <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded-md font-medium">

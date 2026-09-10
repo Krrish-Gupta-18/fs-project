@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Send, Paperclip } from 'lucide-react';
+import { ChatContext } from '../../context/ChatContext';
 
-export function MessageInput({ onSendMessage }) {
+export function MessageInput({ onSendMessage: propSendMessage }) {
+  // Access global sendMessage action from ChatContext (Experiment No. 3)
+  const context = useContext(ChatContext);
+  const sendMessage = context?.sendMessage || propSendMessage;
+
   const [text, setText] = useState('');
 
   const handleSend = (e) => {
     if (e) e.preventDefault();
     if (!text.trim()) return;
 
-    // Send message callback
-    onSendMessage(text);
+    // Dispatch message to global state via ChatContext action
+    if (sendMessage) {
+      sendMessage(text);
+    }
 
     // Clear input after sending
     setText('');
@@ -26,8 +33,8 @@ export function MessageInput({ onSendMessage }) {
     <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
       <button
         type="button"
-        onClick={() => onSendMessage('Check out this sample document attachment', null, { name: 'document.pdf', size: '1.4 MB' })}
-        className="p-2 text-gray-400 hover:text-gray-600 rounded-md"
+        onClick={() => sendMessage && sendMessage('Check out this sample document attachment', null, { name: 'document.pdf', size: '1.4 MB' })}
+        className="p-2 text-gray-400 hover:text-gray-600 rounded-md transition-colors"
         title="Attach sample file"
       >
         <Paperclip className="w-5 h-5" />
@@ -45,10 +52,12 @@ export function MessageInput({ onSendMessage }) {
       <button
         type="submit"
         disabled={!text.trim()}
-        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2.5 rounded-md flex items-center justify-center transition-colors"
+        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2.5 rounded-md flex items-center justify-center transition-colors shadow-sm"
+        title="Send message (dispatches to ChatContext)"
       >
         <Send className="w-4 h-4" />
       </button>
     </form>
   );
 }
+

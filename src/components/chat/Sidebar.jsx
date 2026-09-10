@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { ConversationItem } from './ConversationItem';
 import { Plus, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ChatContext } from '../../context/ChatContext';
 
 export function Sidebar({
-  userProfile,
+  userProfile: propUserProfile,
   conversations,
   activeConversationId,
   onSelectConversation,
@@ -15,6 +16,10 @@ export function Sidebar({
   onNewChatClick,
 }) {
   const navigate = useNavigate();
+
+  // Access global currentUser from ChatContext (Experiment No. 3)
+  const context = useContext(ChatContext);
+  const userProfile = context?.currentUser || propUserProfile;
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200 w-full">
@@ -44,7 +49,12 @@ export function Sidebar({
           </div>
         </div>
         <button
-          onClick={() => navigate('/login')}
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('chatflow_current_user');
+            }
+            navigate('/login');
+          }}
           className="text-gray-400 hover:text-red-600 p-1"
           title="Logout"
         >

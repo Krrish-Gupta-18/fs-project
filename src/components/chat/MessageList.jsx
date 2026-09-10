@@ -1,14 +1,22 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useContext } from 'react';
 import { MessageBubble } from './MessageBubble';
+import { ChatContext } from '../../context/ChatContext';
 
 export function MessageList({
-  messages = [],
-  currentUser,
-  isTyping,
+  messages: propMessages,
+  currentUser: propUser,
+  isTyping: propIsTyping,
   onImageClick,
-  activeConversation,
+  activeConversation: propActiveConversation,
 }) {
-  // Section 10 Requirement: useRef for auto-scrolling message list to bottom
+  // Access global state from ChatContext (Experiment No. 3)
+  const context = useContext(ChatContext);
+  const messages = context?.messages ?? propMessages ?? [];
+  const currentUser = context?.currentUser ?? propUser;
+  const isTyping = context?.isTyping !== undefined ? context.isTyping : propIsTyping;
+  const activeConversation = context?.selectedChat ?? propActiveConversation;
+
+  // Auto-scrolling message list to bottom on new messages
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -25,14 +33,20 @@ export function MessageList({
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-      {messages.map((msg, index) => (
-        <MessageBubble
-          key={msg.id || index}
-          message={msg}
-          currentUser={currentUser}
-          onImageClick={onImageClick}
-        />
-      ))}
+      {messages.length === 0 ? (
+        <div className="text-center py-12 text-gray-400 text-xs">
+          No messages yet. Send a message below to start the conversation!
+        </div>
+      ) : (
+        messages.map((msg, index) => (
+          <MessageBubble
+            key={msg.id || index}
+            message={msg}
+            currentUser={currentUser}
+            onImageClick={onImageClick}
+          />
+        ))
+      )}
 
       {/* Animated Typing Indicator Bubble */}
       {isTyping && (
@@ -58,3 +72,4 @@ export function MessageList({
     </div>
   );
 }
+
