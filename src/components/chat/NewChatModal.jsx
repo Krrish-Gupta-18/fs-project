@@ -3,19 +3,31 @@ import { Modal } from '../common/Modal';
 import { Avatar } from '../common/Avatar';
 import { SearchBar } from '../common/SearchBar';
 import { Button } from '../common/Button';
-import { MessageSquare, UserPlus } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
+import { useChat } from '../../hooks/useChat';
 
-export function NewChatModal({ isOpen, onClose, contacts = [], onSelectContact }) {
+export function NewChatModal() {
+  const {
+    isNewChatModalOpen,
+    setIsNewChatModalOpen,
+    mockContacts = [],
+    startNewConversation,
+  } = useChat();
+
   const [query, setQuery] = useState('');
 
-  const filteredContacts = contacts.filter(
+  const filteredContacts = mockContacts.filter(
     (c) =>
       c.name.toLowerCase().includes(query.toLowerCase()) ||
       c.role.toLowerCase().includes(query.toLowerCase())
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Start New Conversation">
+    <Modal
+      isOpen={isNewChatModalOpen}
+      onClose={() => setIsNewChatModalOpen(false)}
+      title="Start New Conversation"
+    >
       <div className="space-y-4">
         {/* Search Contact */}
         <SearchBar
@@ -30,7 +42,7 @@ export function NewChatModal({ isOpen, onClose, contacts = [], onSelectContact }
             filteredContacts.map((contact) => (
               <div
                 key={contact.id}
-                onClick={() => onSelectContact(contact)}
+                onClick={() => startNewConversation(contact)}
                 className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-800/60 cursor-pointer transition-colors border border-transparent hover:border-slate-700/80 group"
               >
                 <div className="flex items-center gap-3">

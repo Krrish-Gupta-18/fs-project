@@ -1,23 +1,27 @@
 import React from 'react';
 import { Menu, Info } from 'lucide-react';
+import { useChat } from '../../hooks/useChat';
 
-export function ChatHeader({
-  conversation,
-  isTyping,
-  onToggleMobileSidebar,
-  onToggleInfoPanel,
-  isInfoPanelOpen,
-}) {
-  if (!conversation) return null;
+export function ChatHeader() {
+  const {
+    activeConversation,
+    isTyping,
+    isMobileSidebarOpen,
+    setIsMobileSidebarOpen,
+    isInfoPanelOpen,
+    setIsInfoPanelOpen,
+  } = useChat();
 
-  const { name, avatar, status } = conversation;
+  if (!activeConversation) return null;
+
+  const { name, avatar, status } = activeConversation;
 
   return (
     <div className="h-14 px-4 bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
       <div className="flex items-center gap-3">
         {/* Mobile drawer toggle */}
         <button
-          onClick={onToggleMobileSidebar}
+          onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           className="md:hidden p-1.5 text-gray-500 hover:text-gray-700"
         >
           <Menu className="w-5 h-5" />
@@ -44,7 +48,7 @@ export function ChatHeader({
       </div>
 
       <button
-        onClick={onToggleInfoPanel}
+        onClick={() => setIsInfoPanelOpen(!isInfoPanelOpen)}
         className={`p-2 rounded-md transition-colors ${
           isInfoPanelOpen
             ? 'bg-blue-100 text-blue-600'

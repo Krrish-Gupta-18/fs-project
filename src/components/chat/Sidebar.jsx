@@ -2,19 +2,23 @@ import React from 'react';
 import { ConversationItem } from './ConversationItem';
 import { Plus, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useChat } from '../../hooks/useChat';
 
-export function Sidebar({
-  userProfile,
-  conversations,
-  activeConversationId,
-  onSelectConversation,
-  searchQuery,
-  onSearchChange,
-  activeTab,
-  onTabChange,
-  onNewChatClick,
-}) {
+export function Sidebar() {
   const navigate = useNavigate();
+  const {
+    userProfile,
+    conversations,
+    activeConversation,
+    selectConversation,
+    searchQuery,
+    setSearchQuery,
+    activeTab,
+    setActiveTab,
+    setIsNewChatModalOpen,
+  } = useChat();
+
+  const activeConversationId = activeConversation?.id;
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200 w-full">
@@ -22,7 +26,7 @@ export function Sidebar({
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-800">ChatFlow</h1>
         <button
-          onClick={onNewChatClick}
+          onClick={() => setIsNewChatModalOpen(true)}
           className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-md"
         >
           <Plus className="w-4 h-4" />
@@ -34,13 +38,13 @@ export function Sidebar({
       <div className="p-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <img
-            src={userProfile.avatar}
-            alt={userProfile.name}
+            src={userProfile?.avatar}
+            alt={userProfile?.name}
             className="w-8 h-8 rounded-full object-cover"
           />
           <div className="min-w-0">
-            <p className="text-xs font-bold text-gray-800 truncate">{userProfile.name}</p>
-            <p className="text-[10px] text-gray-500 truncate">{userProfile.email}</p>
+            <p className="text-xs font-bold text-gray-800 truncate">{userProfile?.name}</p>
+            <p className="text-[10px] text-gray-500 truncate">{userProfile?.email}</p>
           </div>
         </div>
         <button
@@ -57,7 +61,7 @@ export function Sidebar({
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
+          onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search conversations..."
           className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800"
         />
@@ -68,7 +72,7 @@ export function Sidebar({
         {['all', 'unread', 'groups'].map((tab) => (
           <button
             key={tab}
-            onClick={() => onTabChange(tab)}
+            onClick={() => setActiveTab(tab)}
             className={`flex-1 py-2 capitalize font-medium ${
               activeTab === tab
                 ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
@@ -88,7 +92,7 @@ export function Sidebar({
               key={conv.id}
               conversation={conv}
               isActive={conv.id === activeConversationId}
-              onClick={() => onSelectConversation(conv.id)}
+              onClick={() => selectConversation(conv.id)}
             />
           ))
         ) : (

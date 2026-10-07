@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Send, Paperclip } from 'lucide-react';
+import { useChat } from '../../hooks/useChat';
 
-export function MessageInput({ onSendMessage }) {
+export function MessageInput() {
+  const { sendMessage } = useChat();
   const [text, setText] = useState('');
 
   const handleSend = (e) => {
@@ -9,7 +11,7 @@ export function MessageInput({ onSendMessage }) {
     if (!text.trim()) return;
 
     // Send message callback
-    onSendMessage(text);
+    sendMessage(text);
 
     // Clear input after sending
     setText('');
@@ -26,7 +28,7 @@ export function MessageInput({ onSendMessage }) {
     <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
       <button
         type="button"
-        onClick={() => onSendMessage('Check out this sample document attachment', null, { name: 'document.pdf', size: '1.4 MB' })}
+        onClick={() => sendMessage('Check out this sample document attachment', null, { name: 'document.pdf', size: '1.4 MB' })}
         className="p-2 text-gray-400 hover:text-gray-600 rounded-md"
         title="Attach sample file"
       >

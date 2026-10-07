@@ -1,18 +1,21 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { mockSharedMedia } from '../../data/mockData';
+import { useChat } from '../../hooks/useChat';
 
-export function InfoPanel({ conversation, onClose, onImageClick }) {
-  if (!conversation) return null;
+export function InfoPanel() {
+  const { activeConversation, setIsInfoPanelOpen, setLightboxImage } = useChat();
 
-  const { name, avatar, status, email, phone, location, bio } = conversation;
+  if (!activeConversation) return null;
+
+  const { name, avatar, status, email, phone, location, bio } = activeConversation;
   const photos = mockSharedMedia.filter((m) => m.type === 'image');
 
   return (
     <div className="w-72 bg-white border-l border-gray-200 h-full flex flex-col p-4">
       <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
         <h3 className="text-sm font-bold text-gray-800">User Profile</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <button onClick={() => setIsInfoPanelOpen(false)} className="text-gray-400 hover:text-gray-600">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -38,7 +41,7 @@ export function InfoPanel({ conversation, onClose, onImageClick }) {
               key={item.id}
               src={item.url}
               alt={item.title}
-              onClick={() => onImageClick && onImageClick(item.url)}
+              onClick={() => setLightboxImage(item.url)}
               className="w-full h-16 object-cover rounded cursor-pointer hover:opacity-80"
             />
           ))}

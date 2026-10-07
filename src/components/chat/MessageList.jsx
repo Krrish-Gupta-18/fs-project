@@ -1,19 +1,22 @@
 import React, { useRef, useEffect } from 'react';
 import { MessageBubble } from './MessageBubble';
+import { useChat } from '../../hooks/useChat';
 
-export function MessageList({
-  messages = [],
-  currentUser,
-  isTyping,
-  onImageClick,
-  activeConversation,
-}) {
+export function MessageList() {
+  const {
+    activeMessages = [],
+    userProfile,
+    isTyping,
+    setLightboxImage,
+    activeConversation,
+  } = useChat();
+
   // Section 10 Requirement: useRef for auto-scrolling message list to bottom
   const bottomRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  }, [activeMessages, isTyping]);
 
   if (!activeConversation) {
     return (
@@ -25,12 +28,12 @@ export function MessageList({
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-      {messages.map((msg, index) => (
+      {activeMessages.map((msg, index) => (
         <MessageBubble
           key={msg.id || index}
           message={msg}
-          currentUser={currentUser}
-          onImageClick={onImageClick}
+          currentUser={userProfile}
+          onImageClick={setLightboxImage}
         />
       ))}
 

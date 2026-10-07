@@ -15,27 +15,9 @@ export function ChatPage() {
     isError,
     errorMessage,
     refetchData,
-    conversations,
     activeConversation,
-    activeMessages,
-    userProfile,
-    activeTab,
-    setActiveTab,
-    searchQuery,
-    setSearchQuery,
-    isTyping,
     isMobileSidebarOpen,
-    setIsMobileSidebarOpen,
     isInfoPanelOpen,
-    setIsInfoPanelOpen,
-    isNewChatModalOpen,
-    setIsNewChatModalOpen,
-    lightboxImage,
-    setLightboxImage,
-    selectConversation,
-    sendMessage,
-    startNewConversation,
-    mockContacts,
   } = useChat();
 
   // 1. Loading State UI Representation
@@ -85,63 +67,25 @@ export function ChatPage() {
           ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        <Sidebar
-          userProfile={userProfile}
-          conversations={conversations}
-          activeConversationId={activeConversation?.id}
-          onSelectConversation={selectConversation}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onNewChatClick={() => setIsNewChatModalOpen(true)}
-        />
+        <Sidebar />
       </div>
 
       {/* Main Chat Window */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-white">
-        <ChatHeader
-          conversation={activeConversation}
-          isTyping={isTyping}
-          onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-          onToggleInfoPanel={() => setIsInfoPanelOpen(!isInfoPanelOpen)}
-          isInfoPanelOpen={isInfoPanelOpen}
-        />
+        <ChatHeader />
 
-        <MessageList
-          messages={activeMessages}
-          currentUser={userProfile}
-          isTyping={isTyping}
-          onImageClick={setLightboxImage}
-          activeConversation={activeConversation}
-        />
+        <MessageList />
 
-        {activeConversation && (
-          <MessageInput onSendMessage={sendMessage} />
-        )}
+        {activeConversation && <MessageInput />}
       </div>
 
       {/* Right Info Panel */}
-      {isInfoPanelOpen && activeConversation && (
-        <InfoPanel
-          conversation={activeConversation}
-          onClose={() => setIsInfoPanelOpen(false)}
-          onImageClick={setLightboxImage}
-        />
-      )}
+      {isInfoPanelOpen && activeConversation && <InfoPanel />}
 
       {/* Modal Dialogs */}
-      <NewChatModal
-        isOpen={isNewChatModalOpen}
-        onClose={() => setIsNewChatModalOpen(false)}
-        contacts={mockContacts}
-        onSelectContact={startNewConversation}
-      />
+      <NewChatModal />
 
-      <MediaViewer
-        imageUrl={lightboxImage}
-        onClose={() => setLightboxImage(null)}
-      />
+      <MediaViewer />
     </div>
   );
 }

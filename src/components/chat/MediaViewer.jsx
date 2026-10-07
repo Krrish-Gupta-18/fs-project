@@ -1,7 +1,12 @@
 import React, { useEffect } from 'react';
 import { X, Download } from 'lucide-react';
+import { useChat } from '../../hooks/useChat';
 
-export function MediaViewer({ imageUrl, onClose }) {
+export function MediaViewer() {
+  const { lightboxImage, setLightboxImage } = useChat();
+  const imageUrl = lightboxImage;
+  const onClose = () => setLightboxImage(null);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
@@ -10,7 +15,7 @@ export function MediaViewer({ imageUrl, onClose }) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [imageUrl, onClose]);
+  }, [imageUrl]);
 
   if (!imageUrl) return null;
 
