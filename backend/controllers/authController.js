@@ -33,9 +33,11 @@ export async function register(req, res) {
       message: 'User registered successfully!',
       user: {
         id: newUser.userId,
+        userId: newUser.userId,
         name: newUser.name,
         email: newUser.email,
         avatar: newUser.avatar,
+        status: newUser.status || 'online',
         role: newUser.role || "Member",
       },
       token,
@@ -79,15 +81,44 @@ export async function login(req, res) {
 
 export async function getContacts(req, res) {
   try {
-    const users = await User.find({}, '-password');
+    const currentUserId = req.user?.userId || req.user?.id;
+    const filter = currentUserId ? { userId: { $ne: currentUserId } } : {};
+    const users = await User.find(filter, '-password');
     const contacts = users.map((u) => ({
       id: u.userId,
+      userId: u.userId,
       name: u.name,
+      email: u.email,
       avatar: u.avatar,
       status: u.status,
       role: u.role || 'Member',
     }));
     return res.json(contacts);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+export async function getMe(req, res) {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const user = await User.findOne({ userId }).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    return res.json({
+      id: user.userId,
+      userId: user.userId,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      status: user.status,
+      customStatus: user.customStatus,
+      bio: user.bio,
+      phone: user.phone,
+      location: user.location,
+      role: user.role || 'Member',
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

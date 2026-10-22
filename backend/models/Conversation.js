@@ -19,6 +19,7 @@ const conversationSchema = new mongoose.Schema(
     location: { type: String, default: '' },
     description: { type: String, default: '' },
     membersCount: { type: Number, default: 2 },
+    participants: [{ type: String, index: true }],
   },
   { timestamps: true }
 );

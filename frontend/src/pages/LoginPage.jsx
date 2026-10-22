@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { loginUser } from '../services/mockApi';
+import { loginUser } from '../services/api';
 
 export function LoginPage() {
   const navigate = useNavigate();

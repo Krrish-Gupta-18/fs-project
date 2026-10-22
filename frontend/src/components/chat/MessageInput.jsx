@@ -3,12 +3,29 @@ import { Send, Paperclip } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 
 export function MessageInput() {
-  const { sendMessage } = useChat();
+  const { sendMessage, sendTypingStart, sendTypingStop } = useChat();
   const [text, setText] = useState('');
+
+  const handleChange = (e) => {
+    setText(e.target.value);
+    if (sendTypingStart) {
+      sendTypingStart();
+    }
+  };
+
+  const handleBlur = () => {
+    if (sendTypingStop) {
+      sendTypingStop();
+    }
+  };
 
   const handleSend = (e) => {
     if (e) e.preventDefault();
     if (!text.trim()) return;
+
+    if (sendTypingStop) {
+      sendTypingStop();
+    }
 
     // Send message callback
     sendMessage(text);
@@ -38,7 +55,8 @@ export function MessageInput() {
       <input
         type="text"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={handleChange}
+        onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder="Type a message... (Enter to send)"
         className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"

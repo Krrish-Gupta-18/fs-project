@@ -11,16 +11,24 @@ export function NewChatModal() {
     isNewChatModalOpen,
     setIsNewChatModalOpen,
     mockContacts = [],
+    userProfile,
     startNewConversation,
   } = useChat();
 
   const [query, setQuery] = useState('');
 
-  const filteredContacts = mockContacts.filter(
-    (c) =>
-      c.name.toLowerCase().includes(query.toLowerCase()) ||
-      c.role.toLowerCase().includes(query.toLowerCase())
-  );
+  const myId = userProfile?.id || userProfile?.userId;
+  const filteredContacts = mockContacts.filter((c) => {
+    const contactId = c.id || c.userId;
+    if (myId && contactId === myId) return false;
+
+    const q = query.toLowerCase();
+    return (
+      c.name?.toLowerCase().includes(q) ||
+      c.role?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <Modal
@@ -33,7 +41,7 @@ export function NewChatModal() {
         <SearchBar
           value={query}
           onChange={setQuery}
-          placeholder="Search contacts by name or role..."
+          placeholder="Search contacts by name, role, or email..."
         />
 
         {/* Contacts List */}
@@ -41,7 +49,7 @@ export function NewChatModal() {
           {filteredContacts.length > 0 ? (
             filteredContacts.map((contact) => (
               <div
-                key={contact.id}
+                key={contact.id || contact.userId}
                 onClick={() => startNewConversation(contact)}
                 className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-800/60 cursor-pointer transition-colors border border-transparent hover:border-slate-700/80 group"
               >
@@ -51,7 +59,9 @@ export function NewChatModal() {
                     <h4 className="text-sm font-semibold text-slate-100 group-hover:text-brand-300">
                       {contact.name}
                     </h4>
-                    <p className="text-xs text-slate-400">{contact.role}</p>
+                    <p className="text-xs text-slate-400">
+                      {contact.email ? `${contact.email} • ` : ''}{contact.role || 'Member'}
+                    </p>
                   </div>
                 </div>
 

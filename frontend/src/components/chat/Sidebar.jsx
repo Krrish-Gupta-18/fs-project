@@ -16,6 +16,7 @@ export function Sidebar() {
     activeTab,
     setActiveTab,
     setIsNewChatModalOpen,
+    logout,
   } = useChat();
 
   const activeConversationId = activeConversation?.id;
@@ -38,17 +39,17 @@ export function Sidebar() {
       <div className="p-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <img
-            src={userProfile?.avatar}
+            src={userProfile?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250'}
             alt={userProfile?.name}
             className="w-8 h-8 rounded-full object-cover"
           />
           <div className="min-w-0">
-            <p className="text-xs font-bold text-gray-800 truncate">{userProfile?.name}</p>
-            <p className="text-[10px] text-gray-500 truncate">{userProfile?.email}</p>
+            <p className="text-xs font-bold text-gray-800 truncate">{userProfile?.name || 'User'}</p>
+            <p className="text-[10px] text-gray-500 truncate">{userProfile?.email || ''}</p>
           </div>
         </div>
         <button
-          onClick={() => navigate('/login')}
+          onClick={logout || (() => navigate('/login'))}
           className="text-gray-400 hover:text-red-600 p-1"
           title="Logout"
         >

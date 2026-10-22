@@ -6,6 +6,7 @@ export function ChatHeader() {
   const {
     activeConversation,
     isTyping,
+    typingText,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
     isInfoPanelOpen,
@@ -27,20 +28,25 @@ export function ChatHeader() {
           <Menu className="w-5 h-5" />
         </button>
 
-        <img
-          src={avatar}
-          alt={name}
-          className="w-9 h-9 rounded-full object-cover"
-        />
+        <div className="relative">
+          <img
+            src={avatar}
+            alt={name}
+            className="w-9 h-9 rounded-full object-cover"
+          />
+          {status === 'online' && (
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
+          )}
+        </div>
 
         <div>
           <h2 className="text-sm font-bold text-gray-800">{name}</h2>
           {isTyping ? (
             <span className="text-xs text-blue-600 font-semibold animate-pulse">
-              {name} is typing...
+              {typingText || `${name} is typing...`}
             </span>
           ) : (
-            <span className="text-xs text-gray-500 capitalize">
+            <span className={`text-xs capitalize ${status === 'online' ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
               {status === 'online' ? '● Online' : 'Offline'}
             </span>
           )}

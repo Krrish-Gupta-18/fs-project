@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { registerUser } from '../services/mockApi';
+import { registerUser } from '../services/api';
 
 export function RegisterPage() {
   const navigate = useNavigate();

@@ -1,18 +1,15 @@
-
-FROM node:22-alpine AS builder
+FROM node:22-alpine
 
 WORKDIR /app
+
+COPY ca.pem ./ca.pem
+ENV NODE_EXTRA_CA_CERTS=/app/ca.pem
 
 COPY package*.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
 
-FROM nginx:alpine
+EXPOSE 3000
 
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["npm", "run", "dev", "--", "--host"]

@@ -24,12 +24,16 @@ export async function createMessage(req, res) {
     const messageId = req.body.messageId || `msg_${Date.now()}`;
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    const currentUserId = req.user?.userId || req.user?.id || senderId || 'user_0';
+    const currentUserName = req.user?.name || senderName || 'User';
+    const currentUserAvatar = req.user?.avatar || senderAvatar || '';
+
     const newMessage = await Message.create({
       messageId,
       conversationId,
-      senderId: senderId || 'user_0',
-      senderName: senderName || 'Alex Morgan',
-      senderAvatar: senderAvatar || '',
+      senderId: currentUserId,
+      senderName: currentUserName,
+      senderAvatar: currentUserAvatar,
       text: text ? text.trim() : '',
       timestamp,
       date: 'Today',
@@ -46,6 +50,21 @@ export async function createMessage(req, res) {
         timestamp,
       }
     );
+
+    // Broadcast to Socket.IO clients in conversation room and participants' personal rooms
+    const io = req.app.get('io');
+    if (io) {
+      const conv = await Conversation.findOne({ conversationId });
+      const targetRooms = new Set([conversationId]);
+      if (conv && Array.isArray(conv.participants)) {
+        conv.participants.forEach((pId) => targetRooms.add(`user:${pId}`));
+      }
+
+      io.to(Array.from(targetRooms)).emit('message:new', {
+        conversationId,
+        message: newMessage,
+      });
+    }
 
     return res.status(201).json(newMessage);
   } catch (error) {

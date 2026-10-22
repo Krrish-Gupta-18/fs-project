@@ -112,6 +112,7 @@ export const initialConversations = [
     email: 'sarah.j@designco.io',
     phone: '+1 (555) 987-6543',
     location: 'Seattle, WA',
+    participants: ['user_0', 'contact_2'],
   },
   {
     conversationId: 'conv_2',
@@ -126,6 +127,7 @@ export const initialConversations = [
     isPinned: true,
     isMuted: false,
     description: 'Internal engineering group for frontend innovations, code reviews, and architecture discussions.',
+    participants: ['user_0', 'contact_2', 'contact_3', 'contact_4', 'contact_5', 'user_admin', 'user_mod'],
   },
   {
     conversationId: 'conv_3',
@@ -143,6 +145,7 @@ export const initialConversations = [
     email: 'd.chen@tech.org',
     phone: '+1 (555) 456-7890',
     location: 'Austin, TX',
+    participants: ['user_0', 'contact_3'],
   },
   {
     conversationId: 'conv_4',
@@ -160,6 +163,7 @@ export const initialConversations = [
     email: 'emma.w@creative.co',
     phone: '+1 (555) 321-7654',
     location: 'New York, NY',
+    participants: ['user_0', 'contact_4'],
   },
   {
     conversationId: 'conv_5',
@@ -177,6 +181,7 @@ export const initialConversations = [
     email: 'marcus.vance@techcorp.com',
     phone: '+1 (555) 678-1234',
     location: 'Boston, MA',
+    participants: ['user_0', 'contact_5'],
   },
   {
     conversationId: 'conv_6',
@@ -191,6 +196,7 @@ export const initialConversations = [
     isPinned: false,
     isMuted: false,
     description: 'Cross-functional channel focusing on UI component design, animations, and accessibility.',
+    participants: ['user_0', 'contact_2', 'contact_3', 'contact_4', 'contact_5', 'user_admin', 'user_mod'],
   },
 ];
 

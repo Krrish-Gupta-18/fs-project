@@ -7,6 +7,7 @@ export function MessageList() {
     activeMessages = [],
     userProfile,
     isTyping,
+    typingText,
     setLightboxImage,
     activeConversation,
   } = useChat();
@@ -46,7 +47,7 @@ export function MessageList() {
             className="w-7 h-7 rounded-full object-cover"
           />
           <div className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-xs text-gray-500 flex items-center gap-1">
-            <span>{activeConversation.name} is typing</span>
+            <span>{typingText || `${activeConversation.name} is typing`}</span>
             <span className="flex gap-0.5 ml-1">
               <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
               <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
