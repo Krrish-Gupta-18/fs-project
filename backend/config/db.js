@@ -12,9 +12,16 @@ export async function connectDB() {
       const db = process.env.MONGO_DB || 'chatapp';
 
       if (user && pass) {
-        connStr = `mongodb://${user}:${pass}@${host}:${port}/${db}?authSource=admin`;
+        connStr = `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}:${port}/${db}?authSource=admin`;
       } else {
         connStr = `mongodb://${host}:${port}/${db}`;
+      }
+    } else if (!connStr.includes('@') && process.env.MONGO_USER && process.env.MONGO_PASSWORD) {
+      const user = encodeURIComponent(process.env.MONGO_USER);
+      const pass = encodeURIComponent(process.env.MONGO_PASSWORD);
+      connStr = connStr.replace('mongodb://', `mongodb://${user}:${pass}@`);
+      if (!connStr.includes('authSource=')) {
+        connStr += (connStr.includes('?') ? '&' : '?') + 'authSource=admin';
       }
     }
 

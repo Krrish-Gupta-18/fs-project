@@ -1,0 +1,132 @@
+name: Frontend CI/CD (Vercel)
+
+on:
+  push:
+    branches:
+      - main
+      - latest
+      - master
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-vercel.yml'
+  pull_request:
+    branches:
+      - main
+      - latest
+      - master
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-vercel.yml'
+  workflow_dispatch:
+
+jobs:
+  ci-frontend:
+    name: Frontend CI (Build & Validate)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: |
+          npm ci || npm install
+
+      - name: Test production build
+        working-directory: frontend
+        run: |
+          npm run build
+
+  cd-vercel:
+    name: Frontend CD (Deploy to Vercel)
+    needs: ci-frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Vercel configuration secrets
+        id: check_secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "::warning::Missing VERCEL_TOKEN, VERCEL_ORG_ID, or VERCEL_PROJECT_ID secrets."
+            echo "Skipping Vercel deployment step. Please configure repository secrets to enable automatic deployments."
+            echo "configured=false" >> $GITHUB_OUTPUT
+          else
+            echo "configured=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Vercel CLI
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment information
+        if: steps.check_secrets.outputs.configured == 'true'
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "📥 Pulling Vercel preview environment..."
+            vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          else
+            echo "📥 Pulling Vercel production environment..."
+            vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          fi
+
+      - name: Build project with Vercel CLI
+        if: steps.check_secrets.outputs.configured == 'true'
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "🔨 Building preview artifacts..."
+            vercel build --token="$VERCEL_TOKEN"
+          else
+            echo "🔨 Building production artifacts..."
+            vercel build --prod --token="$VERCEL_TOKEN"
+          fi
+
+      - name: Deploy to Vercel
+        if: steps.check_secrets.outputs.configured == 'true'
+        id: deploy_step
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            DEPLOY_URL=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+            echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+            echo "🚀 Preview deployment live at: $DEPLOY_URL"
+          else
+            DEPLOY_URL=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+            echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+            echo "🚀 Production deployment live at: $DEPLOY_URL"
+          fi
+
+      - name: Add Deployment Summary
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          echo "### 🚀 Vercel Deployment Succeeded" >> $GITHUB_STEP_SUMMARY
+          echo "Target: **${{ github.event_name == 'pull_request' && 'Preview' || 'Production' }}**" >> $GITHUB_STEP_SUMMARY
+          echo "URL: [${{ steps.deploy_step.outputs.url }}](${{ steps.deploy_step.outputs.url }})" >> $GITHUB_STEP_SUMMARY
